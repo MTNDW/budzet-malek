@@ -1,0 +1,12 @@
+target/
+*.class
+*.log
+big.csv
+data/
+
+.idea/
+*.iml
+.vscode/
+
+.DS_Store
+Thumbs.db
