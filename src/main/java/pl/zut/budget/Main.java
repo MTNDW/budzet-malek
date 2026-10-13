@@ -39,7 +39,8 @@ public class Main {
                 1. Dodaj transakcję
                 2. Lista transakcji
                 3. Suma
-                0. Wyjście""");
+                0. Wyjście
+                """);
     }
 
     private static void add() {
@@ -61,21 +62,16 @@ public class Main {
     }
 
     private static void sum() {
-        // TODO policz sumę kwot (uwaga: przecinek jako separator dziesiętny)
-        boolean flag = true;
         BigDecimal suma = new BigDecimal("0.00");
 
-        for (int i = 0; i < transactions.length; i++) {
-            if (transactions[i] == null) {
-                break;
-            }
+        for (String transaction : transactions) {
+            if (transaction == null) { break; }
 
-            String temp = transactions[i].split(";")[1];
-            suma = suma.add(new BigDecimal(temp.replace(',', '.')));
+            String kwota = transaction.split(";")[1];
+            suma = suma.add(new BigDecimal(kwota.replace(',', '.')));
         }
 
-        IO.println(" ");
-        IO.println(suma);
-
+        IO.println("\n"+suma);
     }
+
 }
