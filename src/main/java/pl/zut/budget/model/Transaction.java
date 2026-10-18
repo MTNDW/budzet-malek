@@ -8,7 +8,6 @@ public class Transaction {
     private final Money amount;
     private final Category category;
     private final String description;
-
     private static long nextId = 1;
 
     public long getId() {
@@ -27,6 +26,10 @@ public class Transaction {
         return category;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
@@ -39,36 +42,31 @@ public class Transaction {
         return Objects.hashCode(id);
     }
 
-    public String getDescription() {
-        return description;
-    }
-
-    public Transaction(LocalDate date, Money amount, Category category, String description) {
-        if (description == null || description.isBlank()) {
-            throw new IllegalArgumentException();
-        }
-
-        Objects.requireNonNull(date, "date");
-        Objects.requireNonNull(amount, "amount");
-        Objects.requireNonNull(category, "category");
-        Objects.requireNonNull(description, "description");
-
-        String strippedDescription = description.strip();
-
-        this.date = date;
-        this.amount = amount;
-        this.category = category;
-        this.description = strippedDescription;
-        this.id = nextId++;
-    }
-
     @Override
     public String toString() {
         return  "#" + id +
                 " " + date +
-                " " + amount.amount() +
+                (amount.isNegative() ? " " : "  ") + amount.amount() +
                 " " + amount.currency() +
                 " [" + category.getLabel() + "]" +
                 " " + description;
     }
+
+    public Transaction(LocalDate date, Money amount, Category category, String description) {
+        if (description == null || description.isBlank()) {
+            throw new IllegalArgumentException("description == null || description.isBlank()");
+        }
+
+        Objects.requireNonNull(date, "date == null");
+        Objects.requireNonNull(amount, "amount == null");
+        Objects.requireNonNull(category, "category == null");
+        Objects.requireNonNull(description, "description == null");
+
+        this.date = date;
+        this.amount = amount;
+        this.category = category;
+        this.description = description.strip();
+        this.id = nextId++;
+    }
+
 }

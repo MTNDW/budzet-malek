@@ -8,5 +8,5 @@ public enum Category {
 
     public String getLabel() {
         return this.label;
-    };
+    }
 }

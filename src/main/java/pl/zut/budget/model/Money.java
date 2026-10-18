@@ -36,11 +36,7 @@ public record Money(BigDecimal amount, String currency) {
     };
 
     public boolean isNegative() {
-        if (amount.signum() == -1) {
-            return true;
-        } else {
-            return false;
-        }
+        return amount.signum() == -1;
     }
 
 }
