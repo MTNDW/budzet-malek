@@ -39,4 +39,12 @@ public record Money(BigDecimal amount, String currency) {
         return amount.signum() == -1;
     }
 
+    public boolean isPositive() {
+        return amount.signum() == 1;
+    }
+
+    public Money negate() {
+        return new Money(amount.negate(), currency);
+    }
+
 }
