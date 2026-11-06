@@ -2,12 +2,12 @@ package pl.zut.budget;
 import pl.zut.budget.model.*;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import pl.zut.budget.repository.TransactionRepository;
+import pl.zut.budget.repository.InMemoryTransactionRepository;
 
 public class Main {
 
-    private static final List<Transaction> transactions = new ArrayList<>();
+    private static final TransactionRepository repository = new InMemoryTransactionRepository();
 
     private static final String CURRENCY = "PLN";
 
@@ -28,6 +28,8 @@ public class Main {
                 case "1" -> add();
                 case "2" -> list();
                 case "3" -> sum();
+                case "4" -> find();
+                case "5" -> remove();
                 case "0" -> running = false;
                 default -> IO.println("Nieznana opcja: " + choice);
             }
@@ -42,14 +44,16 @@ public class Main {
                 1. Dodaj transakcję
                 2. Lista transakcji
                 3. Suma
+                4. Znajdź transakcję po ID
+                5. Usuń transakcję po ID
                 0. Wyjście""");
     }
 
     private static void addSamples() {
-        transactions.add(Income.of(LocalDate.of(2026, 10, 1), Money.of("5200,00", CURRENCY), Category.SALARY, "Wynagrodzenie"));
-        transactions.add(Expense.of(LocalDate.of(2026, 10, 2), Money.of("45,90", CURRENCY), Category.FOOD, "Biedronka"));
-        transactions.add(Expense.of(LocalDate.of(2026, 10, 5), Money.of("120,00", CURRENCY), Category.TRANSPORT, "Orlen"));
-        transactions.add(Transfer.of(LocalDate.of(2026, 10, 6), Money.of("500,00", CURRENCY), "ROR", "Oszczędności", "Na wakacje"));
+        repository.add(Income.of(LocalDate.of(2026, 10, 1), Money.of("5200,00", CURRENCY), Category.SALARY, "Wynagrodzenie"));
+        repository.add(Expense.of(LocalDate.of(2026, 10, 2), Money.of("45,90", CURRENCY), Category.FOOD, "Biedronka"));
+        repository.add(Expense.of(LocalDate.of(2026, 10, 5), Money.of("120,00", CURRENCY), Category.TRANSPORT, "Orlen"));
+        repository.add(Transfer.of(LocalDate.of(2026, 10, 6), Money.of("500,00", CURRENCY), "ROR", "Oszczędności", "Na wakacje"));
     }
 
     private static void add() {
@@ -63,7 +67,7 @@ public class Main {
                 case "3" -> Transfer.of(date, amount, IO.readln("Z konta: "), IO.readln("Na konto: "), IO.readln("Opis: "));
                 default -> throw new IllegalArgumentException("Nieznany typ: " + type);
             };
-            transactions.add(t);
+            repository.add(t);
         } catch (RuntimeException e) {
             IO.println("Nie dodano transakcji: " + e.getMessage());
         }
@@ -79,7 +83,7 @@ public class Main {
     }
 
     private static void list() {
-        for (Transaction t : transactions) {
+        for (Transaction t : repository.findAll()) {
             IO.println(TransactionFormatter.describe(t));
         }
     }
@@ -88,7 +92,7 @@ public class Main {
         Money income = Money.of("0", CURRENCY);
         Money expenses = Money.of("0", CURRENCY);
         Money balance = Money.of("0", CURRENCY);
-        for (Transaction t : transactions) {
+        for (Transaction t : repository.findAll()) {
             switch (t) {
                 case Income i -> income = income.plus(i.amount());
                 case Expense e -> expenses = expenses.plus(e.amount());
@@ -99,6 +103,33 @@ public class Main {
         IO.println("Wpływy:  " + income.amount() + " " + CURRENCY);
         IO.println("Wydatki: " + expenses.amount() + " " + CURRENCY);
         IO.println("Saldo:   " + balance.amount() + " " + CURRENCY);
+    }
+
+    private static void find() {
+        try {
+            long id = Long.parseLong(IO.readln("Id transakcji: ").strip());
+            Transaction t = repository.findById(id);
+            if (t == null) {
+                IO.println("Nie znaleziono transakcji: " + id);
+            } else {
+                IO.println(TransactionFormatter.describe(t));
+            }
+        } catch (RuntimeException e) {
+            IO.println("Nie wyszukano transakcji: " + e.getMessage());
+        }
+    }
+
+    private static void remove() {
+        try {
+            long id = Long.parseLong(IO.readln("Id transakcji: ").strip());
+            if (repository.remove(id)) {
+                IO.println("Usunięto transakcję: " + id);
+            } else {
+                IO.println("Nie znaleziono transakcji: " + id);
+            }
+        } catch (RuntimeException e) {
+            IO.println("Nie usunięto transakcji: " + e.getMessage());
+        }
     }
 
 }
