@@ -1,4 +1,5 @@
 package pl.zut.budget.repository;
+import pl.zut.budget.exception.TransactionNotFoundException;
 
 import pl.zut.budget.model.Transaction;
 import java.util.ArrayList;
@@ -23,7 +24,7 @@ public class InMemoryTransactionRepository implements TransactionRepository {
         for (Transaction t : transactions) {
             if (t.id() == id) { return t; }
         }
-        return null;
+        throw new TransactionNotFoundException(id);
     }
 
     @Override

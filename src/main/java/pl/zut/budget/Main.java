@@ -4,6 +4,11 @@ import pl.zut.budget.model.*;
 import java.time.LocalDate;
 import pl.zut.budget.repository.TransactionRepository;
 import pl.zut.budget.repository.InMemoryTransactionRepository;
+import java.time.format.DateTimeParseException;
+import java.util.List;
+import pl.zut.budget.exception.AppException;
+import pl.zut.budget.exception.ValidationException;
+import pl.zut.budget.exception.TransactionNotFoundException;
 
 public class Main {
 
@@ -24,16 +29,23 @@ public class Main {
 
             IO.println("\n-------------------");
 
-            switch (choice.strip()) {
-                case "1" -> add();
-                case "2" -> list();
-                case "3" -> sum();
-                case "4" -> find();
-                case "5" -> remove();
-                case "0" -> running = false;
-                default -> IO.println("Nieznana opcja: " + choice);
+            try {
+                switch (choice.strip()) {
+                    case "1" -> add();
+                    case "2" -> list();
+                    case "3" -> sum();
+                    case "4" -> find();
+                    case "5" -> remove();
+                    case "0" -> running = false;
+                    default -> IO.println("Nieznana opcja: " + choice);
+                }
+                IO.println("-------------------\n");
+            } catch (AppException e) {
+                IO.println("Błąd: " + e.getMessage());
+            } catch (RuntimeException e) {
+                IO.println("Błąd programu. Zgłoś go prowadzącemu.");
+                e.printStackTrace(System.err);
             }
-            IO.println("-------------------\n");
 
         }
         IO.println("Do zobaczenia.");
@@ -57,19 +69,35 @@ public class Main {
     }
 
     private static void add() {
+        String type = read("Typ (1 przychód, 2 wydatek, 3 przelew): ");
+        if (!type.equals("1") && !type.equals("2") && !type.equals("3")) {
+            throw new ValidationException(List.of("Nieznany typ: " + type));
+        }
+        LocalDate date = readDate();
+        Money amount = Money.of(read("Kwota (np. 45,90): "), CURRENCY);
+        Transaction t = switch (type) {
+            case "1" -> Income.of(date, amount, readCategory(), read("Opis: "));
+            case "2" -> Expense.of(date, amount, readCategory(), read("Opis: "));
+            case "3" -> Transfer.of(date, amount, read("Z konta: "), read("Na konto: "), read("Opis: "));
+            default -> throw new ValidationException(List.of("Nieznany typ: " + type));
+        };
+        repository.add(t);
+    }
+
+    private static String read(String prompt) {
+        String text = IO.readln(prompt);
+        if (text == null) {
+            throw new ValidationException(List.of("Przerwano wpisywanie danych"));
+        }
+        return text.strip();
+    }
+
+    private static LocalDate readDate() {
+        String text = read("Data (RRRR-MM-DD): ");
         try {
-            String type = IO.readln("Typ (1 przychód, 2 wydatek, 3 przelew): ").strip();
-            LocalDate date = LocalDate.parse(IO.readln("Data (RRRR-MM-DD): "));
-            Money amount = Money.of(IO.readln("Kwota (np. 45,90): "), CURRENCY);
-            Transaction t = switch (type) {
-                case "1" -> Income.of(date, amount, readCategory(), IO.readln("Opis: "));
-                case "2" -> Expense.of(date, amount, readCategory(), IO.readln("Opis: "));
-                case "3" -> Transfer.of(date, amount, IO.readln("Z konta: "), IO.readln("Na konto: "), IO.readln("Opis: "));
-                default -> throw new IllegalArgumentException("Nieznany typ: " + type);
-            };
-            repository.add(t);
-        } catch (RuntimeException e) {
-            IO.println("Nie dodano transakcji: " + e.getMessage());
+            return LocalDate.parse(text);
+        } catch (DateTimeParseException e) {
+            throw new ValidationException(List.of("Zła data: " + text), e);
         }
     }
 
@@ -78,7 +106,16 @@ public class Main {
         for (int i = 0; i < all.length; i++) {
             IO.println((i + 1) + ". " + all[i].getLabel());
         }
-        int number = Integer.parseInt(IO.readln("Kategoria (numer): ").strip());
+        String text = read("Kategoria (numer): ");
+        int number;
+        try {
+            number = Integer.parseInt(text);
+        } catch (NumberFormatException e) {
+            throw new ValidationException(List.of("Zły numer kategorii: " + text), e);
+        }
+        if (number < 1 || number > all.length) {
+            throw new ValidationException(List.of("Kategoria spoza zakresu 1-" + all.length));
+        }
         return all[number - 1];
     }
 
@@ -105,31 +142,80 @@ public class Main {
         IO.println("Saldo:   " + balance.amount() + " " + CURRENCY);
     }
 
-    private static void find() {
+    private static long readId() {
+        String text = read("Id transakcji: ");
         try {
-            long id = Long.parseLong(IO.readln("Id transakcji: ").strip());
-            Transaction t = repository.findById(id);
-            if (t == null) {
-                IO.println("Nie znaleziono transakcji: " + id);
-            } else {
-                IO.println(TransactionFormatter.describe(t));
-            }
-        } catch (RuntimeException e) {
-            IO.println("Nie wyszukano transakcji: " + e.getMessage());
+            return Long.parseLong(text);
+        } catch (NumberFormatException e) {
+            throw new ValidationException(List.of("Zły numer transakcji: " + text), e);
         }
+    }
+
+    private static void find() {
+        Transaction t = repository.findById(readId());
+        IO.println(TransactionFormatter.describe(t));
     }
 
     private static void remove() {
-        try {
-            long id = Long.parseLong(IO.readln("Id transakcji: ").strip());
-            if (repository.remove(id)) {
-                IO.println("Usunięto transakcję: " + id);
-            } else {
-                IO.println("Nie znaleziono transakcji: " + id);
-            }
-        } catch (RuntimeException e) {
-            IO.println("Nie usunięto transakcji: " + e.getMessage());
+        long id = readId();
+        if (!repository.remove(id)) {
+            throw new TransactionNotFoundException(id);
         }
+        IO.println("Usunięto transakcję: " + id);
     }
 
 }
+
+
+//private static void add() {
+//        try {
+//            String type = IO.readln("Typ (1 przychód, 2 wydatek, 3 przelew): ").strip();
+//            LocalDate date = LocalDate.parse(IO.readln("Data (RRRR-MM-DD): "));
+//            Money amount = Money.of(IO.readln("Kwota (np. 45,90): "), CURRENCY);
+//            Transaction t = switch (type) {
+//                case "1" -> Income.of(date, amount, readCategory(), IO.readln("Opis: "));
+//                case "2" -> Expense.of(date, amount, readCategory(), IO.readln("Opis: "));
+//                case "3" -> Transfer.of(date, amount, IO.readln("Z konta: "), IO.readln("Na konto: "), IO.readln("Opis: "));
+//                default -> throw new IllegalArgumentException("Nieznany typ: " + type);
+//            };
+//            repository.add(t);
+//        } catch (RuntimeException e) {
+//            IO.println("Nie dodano transakcji: " + e.getMessage());
+//        }
+//    }
+//
+//    private static Category readCategory() {
+//        Category[] all = Category.values();
+//        for (int i = 0; i < all.length; i++) {
+//            IO.println((i + 1) + ". " + all[i].getLabel());
+//        }
+//        int number = Integer.parseInt(IO.readln("Kategoria (numer): ").strip());
+//        return all[number - 1];
+//    }
+
+//private static void find() {
+//    try {
+//        long id = Long.parseLong(IO.readln("Id transakcji: ").strip());
+//        Transaction t = repository.findById(id);
+//        if (t == null) {
+//            IO.println("Nie znaleziono transakcji: " + id);
+//        } else {
+//            IO.println(TransactionFormatter.describe(t));
+//        }
+//    } catch (RuntimeException e) {
+//        IO.println("Nie wyszukano transakcji: " + e.getMessage());
+//    }
+//}
+//
+//private static void remove() {
+//    try {
+//        long id = Long.parseLong(IO.readln("Id transakcji: ").strip());
+//        if (repository.remove(id)) {
+//            IO.println("Usunięto transakcję: " + id);
+//        } else {
+//            IO.println("Nie znaleziono transakcji: " + id);
+//        }
+//    } catch (RuntimeException e) {
+//        IO.println("Nie usunięto transakcji: " + e.getMessage());
+//    }
+//}
